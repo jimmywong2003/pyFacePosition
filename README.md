@@ -7,9 +7,13 @@ A Python-based application for facial feature detection and visualization with a
 - **Image Loading**: Support for common image formats (JPG, PNG, BMP, TIFF)
 - **Face Detection**: Detect faces using OpenCV Haar cascades
 - **Facial Feature Detection**: Identify eyes and mouth positions
-- **Visualization**: Color-coded annotations for different facial features
+- **Manual Editing**: Interactive click-and-drag editing of facial features
+- **Manual Data Entry**: Precise coordinate input through forms
+- **OFIQ Integration**: Support for OFIQ data input and visualization
+- **Visualization**: Color-coded annotations with different styles for detected vs manual data
 - **Interactive GUI**: User-friendly interface with real-time feedback
-- **Results Export**: Save annotated images and detection data
+- **Results Export**: Save annotated images, text data, and JSON exports
+- **Data Serialization**: Save and load manual annotations
 - **Algorithm Comparison**: Framework for comparing different detection algorithms
 
 ## Installation
@@ -113,10 +117,45 @@ pyFacePosition/
 ## Color Coding
 
 The application uses the following color scheme for visualization:
+
+### Detected Features
 - **Green**: Face bounding boxes
 - **Blue**: Left eye positions (marked with "L")
 - **Red**: Right eye positions (marked with "R")
 - **Yellow**: Mouth positions (marked with "M")
+
+### Manual/OFIQ Features
+- **Orange**: Manual/OFIQ eye centers (marked with "L*" and "R*")
+- **Deep Pink**: Manual/OFIQ mouth centers (marked with "M*")
+- **Squares**: Manual eye centers (different shape from detected circles)
+- **Diamonds**: Manual mouth centers (different shape from detected circles)
+
+## Manual Editing Features
+
+### Interactive Editing
+- **Click and Drag**: Click on any facial feature and drag to reposition
+- **Face Bounding Box**: Click and drag to resize the face bounding box
+- **Visual Feedback**: Dashed lines and preview shapes during editing
+- **Automatic Updates**: Manual edits automatically update the data source to "manual"
+
+### Manual Input Forms
+- **Coordinate Input**: Precise numeric input for all facial features
+- **Face Selection**: Dropdown to select between multiple detected faces
+- **Data Source**: Choose between "Detected", "Manual", or "OFIQ" data sources
+- **Confidence Scoring**: Set manual confidence levels (0.0-1.0)
+- **Validation**: Coordinate ranges automatically adjust based on image dimensions
+
+### Data Management
+- **JSON Export**: Save detection results as JSON for programmatic use
+- **Text Export**: Human-readable text file with all detection data
+- **Image Export**: Save annotated images with both detected and manual data
+- **Serialization**: `to_dict()` and `from_dict()` methods for data persistence
+
+### Visualization Options
+- **Show Centers Only**: Toggle to show only center points without bounding boxes
+- **Show Detected Points**: Toggle visibility of detected features
+- **Show Manual Points**: Toggle visibility of manual/OFIQ features
+- **Comparison Mode**: Side-by-side comparison of detected vs manual data (placeholder)
 
 ## Development
 
