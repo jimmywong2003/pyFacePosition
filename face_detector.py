@@ -18,6 +18,69 @@ class FaceDetectionResult:
     mouth: Optional[Tuple[int, int]] = None  # (x, y)
     confidence: float = 0.0
     algorithm: str = "OpenCV"
+    
+    # Manual/OFIQ specific fields
+    left_eye_center: Optional[Tuple[int, int]] = None  # Manual/OFIQ left eye center (x, y)
+    right_eye_center: Optional[Tuple[int, int]] = None  # Manual/OFIQ right eye center (x, y)
+    mouth_center: Optional[Tuple[int, int]] = None  # Manual/OFIQ mouth center (x, y)
+    data_source: str = "detected"  # "detected", "manual", "ofiq"
+    manual_confidence: float = 1.0  # Confidence for manual/OFIQ entries (0.0-1.0)
+    
+    # Additional facial landmarks (for future 98-point support)
+    landmarks: Optional[List[Tuple[int, int]]] = None  # List of (x, y) coordinates
+    
+    def has_manual_data(self) -> bool:
+        """Check if this result contains manual or OFIQ data."""
+        return (self.left_eye_center is not None or 
+                self.right_eye_center is not None or 
+                self.mouth_center is not None or
+                self.data_source in ["manual", "ofiq"])
+    
+    def get_effective_eyes(self) -> Tuple[Optional[Tuple[int, int]], Optional[Tuple[int, int]]]:
+        """Get eye coordinates, preferring manual/OFIQ data if available."""
+        left = self.left_eye_center if self.left_eye_center is not None else self.left_eye
+        right = self.right_eye_center if self.right_eye_center is not None else self.right_eye
+        return left, right
+    
+    def get_effective_mouth(self) -> Optional[Tuple[int, int]]:
+        """Get mouth coordinate, preferring manual/OFIQ data if available."""
+        return self.mouth_center if self.mouth_center is not None else self.mouth
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert result to dictionary for serialization."""
+        result = {
+            "face_bbox": self.face_bbox,
+            "left_eye": self.left_eye,
+            "right_eye": self.right_eye,
+            "mouth": self.mouth,
+            "confidence": self.confidence,
+            "algorithm": self.algorithm,
+            "left_eye_center": self.left_eye_center,
+            "right_eye_center": self.right_eye_center,
+            "mouth_center": self.mouth_center,
+            "data_source": self.data_source,
+            "manual_confidence": self.manual_confidence,
+            "landmarks": self.landmarks
+        }
+        return result
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "FaceDetectionResult":
+        """Create result from dictionary."""
+        return cls(
+            face_bbox=data.get("face_bbox", (0, 0, 0, 0)),
+            left_eye=data.get("left_eye"),
+            right_eye=data.get("right_eye"),
+            mouth=data.get("mouth"),
+            confidence=data.get("confidence", 0.0),
+            algorithm=data.get("algorithm", "OpenCV"),
+            left_eye_center=data.get("left_eye_center"),
+            right_eye_center=data.get("right_eye_center"),
+            mouth_center=data.get("mouth_center"),
+            data_source=data.get("data_source", "detected"),
+            manual_confidence=data.get("manual_confidence", 1.0),
+            landmarks=data.get("landmarks")
+        )
 
 
 class FaceDetector:
@@ -204,28 +267,73 @@ class FaceDetector:
             x, y, w, h = result.face_bbox
             cv2.rectangle(output, (x, y), (x + w, y + h), (0, 255, 0), 2)
             
-            # Draw left eye (blue)
-            if result.left_eye:
-                cv2.circle(output, result.left_eye, 5, (255, 0, 0), -1)
-                cv2.putText(output, "L", (result.left_eye[0] - 10, result.left_eye[1] - 10),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+            # Get effective coordinates (prefer manual/OFIQ if available)
+            left_eye, right_eye = result.get_effective_eyes()
+            mouth = result.get_effective_mouth()
             
-            # Draw right eye (red)
-            if result.right_eye:
-                cv2.circle(output, result.right_eye, 5, (0, 0, 255), -1)
-                cv2.putText(output, "R", (result.right_eye[0] - 10, result.right_eye[1] - 10),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+            # Draw left eye - different style for manual/OFIQ
+            if left_eye:
+                if result.left_eye_center is not None:  # Manual/OFIQ data
+                    # Draw as a square with thicker border for manual data
+                    cv2.rectangle(output, 
+                                 (left_eye[0] - 6, left_eye[1] - 6),
+                                 (left_eye[0] + 6, left_eye[1] + 6),
+                                 (255, 165, 0), 3)  # Orange for manual
+                    cv2.putText(output, "L*", (left_eye[0] - 15, left_eye[1] - 15),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 165, 0), 2)
+                else:  # Detected data
+                    cv2.circle(output, left_eye, 5, (255, 0, 0), -1)
+                    cv2.putText(output, "L", (left_eye[0] - 10, left_eye[1] - 10),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
             
-            # Draw mouth (yellow)
-            if result.mouth:
-                cv2.circle(output, result.mouth, 5, (0, 255, 255), -1)
-                cv2.putText(output, "M", (result.mouth[0] - 10, result.mouth[1] - 10),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+            # Draw right eye - different style for manual/OFIQ
+            if right_eye:
+                if result.right_eye_center is not None:  # Manual/OFIQ data
+                    # Draw as a square with thicker border for manual data
+                    cv2.rectangle(output, 
+                                 (right_eye[0] - 6, right_eye[1] - 6),
+                                 (right_eye[0] + 6, right_eye[1] + 6),
+                                 (255, 165, 0), 3)  # Orange for manual
+                    cv2.putText(output, "R*", (right_eye[0] - 15, right_eye[1] - 15),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 165, 0), 2)
+                else:  # Detected data
+                    cv2.circle(output, right_eye, 5, (0, 0, 255), -1)
+                    cv2.putText(output, "R", (right_eye[0] - 10, right_eye[1] - 10),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
             
-            # Add confidence and algorithm info
-            info_text = f"{result.algorithm}: {result.confidence:.2f}"
+            # Draw mouth - different style for manual/OFIQ
+            if mouth:
+                if result.mouth_center is not None:  # Manual/OFIQ data
+                    # Draw as a diamond for manual data
+                    pts = np.array([
+                        [mouth[0], mouth[1] - 7],
+                        [mouth[0] + 7, mouth[1]],
+                        [mouth[0], mouth[1] + 7],
+                        [mouth[0] - 7, mouth[1]]
+                    ], np.int32)
+                    cv2.polylines(output, [pts], True, (255, 20, 147), 3)  # Deep pink for manual
+                    cv2.putText(output, "M*", (mouth[0] - 15, mouth[1] - 15),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 20, 147), 2)
+                else:  # Detected data
+                    cv2.circle(output, mouth, 5, (0, 255, 255), -1)
+                    cv2.putText(output, "M", (mouth[0] - 10, mouth[1] - 10),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+            
+            # Add info text with data source
+            if result.has_manual_data():
+                info_text = f"{result.algorithm} + Manual: {result.confidence:.2f}"
+                color = (255, 165, 0)  # Orange for mixed data
+            else:
+                info_text = f"{result.algorithm}: {result.confidence:.2f}"
+                color = (0, 255, 0)  # Green for detected only
+            
             cv2.putText(output, info_text, (x, y - 10),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            
+            # Draw landmarks if available (for future 98-point support)
+            if result.landmarks:
+                for landmark in result.landmarks:
+                    cv2.circle(output, landmark, 2, (255, 255, 255), -1)
         
         return output
 
